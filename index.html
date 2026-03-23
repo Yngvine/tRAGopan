@@ -1,0 +1,742 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>tRAGopen — LLM × Map</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      :root {
+        --c-bg: #080b10;
+        --c-surface: #0f1319;
+        --c-surface2: #161c26;
+        --c-border: #1e2535;
+        --c-accent: #ffd166;
+        --c-accent2: #7b6ff0;
+        --c-text: #e8ebf2;
+        --c-muted: #5a6278;
+      }
+      body {
+        font-family: "DM Sans", sans-serif;
+        background: var(--c-bg);
+        color: var(--c-text);
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      /* ── Header ── */
+      #header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 11px 18px;
+        border-bottom: 1px solid var(--c-border);
+        background: var(--c-surface);
+        flex-shrink: 0;
+      }
+      .logo {
+        width: 26px;
+        height: 26px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        border-radius: 7px;
+      }
+      .logo img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      #header h1 {
+        font-family: "Space Mono", monospace;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        color: var(--c-accent);
+      }
+      #header .sub {
+        font-size: 11px;
+        color: var(--c-muted);
+        margin-left: 4px;
+        font-family: "Space Mono", monospace;
+      }
+
+      /* ── Layout ── */
+      #main {
+        display: flex;
+        flex: 1;
+        overflow: hidden;
+      }
+
+      /* ── Chat Panel ── */
+      #chat-panel {
+        width: 390px;
+        min-width: 280px;
+        display: flex;
+        flex-direction: column;
+        background: var(--c-surface);
+        border-right: 1px solid var(--c-border);
+        flex-shrink: 0;
+      }
+      #chat-top {
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--c-border);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .pulse {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--c-accent);
+        animation: p 2s infinite;
+      }
+      @keyframes p {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.3;
+        }
+      }
+      #chat-top span {
+        font-size: 11px;
+        color: var(--c-muted);
+        font-family: "Space Mono", monospace;
+      }
+      .clear-btn {
+        margin-left: auto;
+        font-size: 10px;
+        color: var(--c-muted);
+        background: none;
+        border: 1px solid var(--c-border);
+        border-radius: 5px;
+        padding: 3px 9px;
+        cursor: pointer;
+        font-family: "Space Mono", monospace;
+        transition: all 0.2s;
+      }
+      .clear-btn:hover {
+        color: var(--c-text);
+        border-color: var(--c-muted);
+      }
+
+      /* ── Messages ── */
+      #messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        scroll-behavior: smooth;
+      }
+      #messages::-webkit-scrollbar {
+        width: 3px;
+      }
+      #messages::-webkit-scrollbar-thumb {
+        background: var(--c-border);
+        border-radius: 2px;
+      }
+      .msg {
+        max-width: 92%;
+        padding: 10px 13px;
+        border-radius: 12px;
+        font-size: 13px;
+        line-height: 1.6;
+        animation: fi 0.25s ease;
+      }
+      @keyframes fi {
+        from {
+          opacity: 0;
+          transform: translateY(5px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .msg.user {
+        background: var(--c-accent2);
+        color: #fff;
+        align-self: flex-end;
+        border-bottom-right-radius: 3px;
+      }
+      .msg.ai {
+        background: var(--c-surface2);
+        border: 1px solid var(--c-border);
+        align-self: flex-start;
+        border-bottom-left-radius: 3px;
+      }
+
+      /* ── POI list inside message ── */
+      .poi-list {
+        margin-top: 9px;
+        padding-top: 9px;
+        border-top: 1px solid var(--c-border);
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+      .poi-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 9px;
+        border-radius: 8px;
+        background: rgba(0, 0, 0, 0.25);
+        border: 1px solid var(--c-border);
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .poi-item:hover {
+        border-color: var(--c-accent);
+        background: rgba(255, 209, 102, 0.06);
+      }
+      .poi-icon {
+        width: 26px;
+        height: 26px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        flex-shrink: 0;
+      }
+      .poi-details {
+        flex: 1;
+        min-width: 0;
+      }
+      .poi-name {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--c-text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .poi-type {
+        font-size: 10px;
+        color: var(--c-muted);
+        font-family: "Space Mono", monospace;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .poi-num {
+        font-size: 10px;
+        color: var(--c-accent);
+        font-family: "Space Mono", monospace;
+        font-weight: 700;
+        margin-left: auto;
+      }
+
+      /* ── Input area ── */
+      #input-area {
+        padding: 12px;
+        border-top: 1px solid var(--c-border);
+        display: flex;
+        gap: 7px;
+        align-items: flex-end;
+      }
+      textarea {
+        flex: 1;
+        background: var(--c-surface2);
+        border: 1px solid var(--c-border);
+        border-radius: 9px;
+        padding: 9px 13px;
+        color: var(--c-text);
+        font-size: 13px;
+        font-family: "DM Sans", sans-serif;
+        resize: none;
+        min-height: 40px;
+        max-height: 110px;
+        line-height: 1.5;
+        outline: none;
+        transition: border-color 0.2s;
+      }
+      textarea:focus {
+        border-color: var(--c-accent2);
+      }
+      textarea::placeholder {
+        color: var(--c-muted);
+      }
+      #send-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        background: var(--c-accent);
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        transition: all 0.2s;
+      }
+      #send-btn:hover {
+        filter: brightness(1.1);
+        transform: scale(1.06);
+      }
+      #send-btn:disabled {
+        opacity: 0.35;
+        cursor: default;
+        transform: none;
+      }
+      #send-btn svg {
+        width: 15px;
+        height: 15px;
+        fill: var(--c-bg);
+      }
+
+      /* ── Map Panel ── */
+      #map-panel {
+        flex: 1;
+        position: relative;
+        overflow: hidden;
+      }
+      #map {
+        width: 100%;
+        height: 100%;
+      }
+      .map-badge {
+        position: absolute;
+        background: rgba(8, 11, 16, 0.82);
+        border: 1px solid var(--c-border);
+        border-radius: 9px;
+        padding: 8px 13px;
+        font-family: "Space Mono", monospace;
+        backdrop-filter: blur(10px);
+        z-index: 999;
+      }
+      #map-title {
+        top: 14px;
+        left: 14px;
+        font-size: 11px;
+        color: var(--c-muted);
+      }
+      #map-title strong {
+        color: var(--c-text);
+        display: block;
+        margin-bottom: 1px;
+        font-size: 12px;
+      }
+      #poi-counter {
+        top: 14px;
+        right: 14px;
+        font-size: 12px;
+        color: var(--c-muted);
+      }
+      #poi-counter span {
+        color: var(--c-accent);
+        font-weight: 700;
+      }
+
+      /* ── Thinking indicator ── */
+      .thinking {
+        display: flex;
+        gap: 4px;
+        padding: 9px 13px;
+        background: var(--c-surface2);
+        border: 1px solid var(--c-border);
+        border-radius: 12px;
+        border-bottom-left-radius: 3px;
+        align-self: flex-start;
+      }
+      .thinking .d {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--c-muted);
+        animation: b 1.2s infinite;
+      }
+      .thinking .d:nth-child(2) {
+        animation-delay: 0.18s;
+      }
+      .thinking .d:nth-child(3) {
+        animation-delay: 0.36s;
+      }
+      @keyframes b {
+        0%,
+        60%,
+        100% {
+          transform: translateY(0);
+        }
+        30% {
+          transform: translateY(-5px);
+        }
+      }
+
+      /* ── Leaflet popup overrides ── */
+      .leaflet-popup-content-wrapper {
+        background: var(--c-surface2) !important;
+        border: 1px solid var(--c-border) !important;
+        border-radius: 10px !important;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5) !important;
+        color: var(--c-text) !important;
+        font-family: "DM Sans", sans-serif !important;
+      }
+      .leaflet-popup-tip {
+        background: var(--c-surface2) !important;
+      }
+      .leaflet-popup-content {
+        margin: 10px 14px !important;
+        font-size: 13px !important;
+        line-height: 1.5 !important;
+      }
+      .pop-title {
+        font-weight: 500;
+        font-size: 14px;
+        color: var(--c-text);
+        margin-bottom: 3px;
+      }
+      .pop-type {
+        font-size: 10px;
+        font-family: monospace;
+        color: var(--c-accent);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 5px;
+      }
+      .pop-desc {
+        font-size: 12px;
+        color: #8899aa;
+        line-height: 1.5;
+      }
+      .leaflet-control-zoom a {
+        background: var(--c-surface2) !important;
+        border-color: var(--c-border) !important;
+        color: var(--c-text) !important;
+      }
+      .leaflet-control-zoom a:hover {
+        background: var(--c-surface) !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="header">
+      <div class="logo">
+        <img src="RA.png" alt="RA logo" />
+      </div>
+      <h1>tRAGopen</h1>
+      <span class="sub">— LLM × Map</span>
+    </div>
+
+    <div id="main">
+      <div id="chat-panel">
+        <div id="chat-top">
+          <div class="pulse"></div>
+          <span>Points of Interest</span>
+          <button class="clear-btn" onclick="clearAll()">clear map</button>
+        </div>
+        <div id="messages">
+          <div class="msg ai">
+            Describe any place — restaurants, hotels, museums, bars, parks — and
+            I'll extract each point of interest and pin it on the map.<br /><br />
+            <span style="font-size: 11.5px; color: var(--c-muted)"
+              >Try:
+              <em
+                >"Best sushi spots in Tokyo: Sukiyabashi Jiro in Ginza and Sushi
+                Saito in Minato."</em
+              ></span
+            >
+          </div>
+        </div>
+        <div id="input-area">
+          <textarea
+            id="user-input"
+            placeholder="Describe places, a neighbourhood, a trip..."
+            rows="1"
+            onkeydown="handleKey(event)"
+            oninput="autoResize(this)"
+          ></textarea>
+          <button id="send-btn" onclick="sendMessage()">
+            <svg viewBox="0 0 16 16">
+              <path d="M1 1l14 7L1 15V9.5l10-1.5-10-1.5V1z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div id="map-panel">
+        <div id="map"></div>
+        <div class="map-badge" id="map-title">
+          <strong>Dark Map</strong>POIs pinned live
+        </div>
+        <div class="map-badge" id="poi-counter">
+          POIs: <span id="pin-count">0</span>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+      // ─── Category config ───────────────────────────────────────────────────────
+      const CATEGORY_COLORS = {
+        restaurant: "#FF6B6B",
+        hotel: "#4FC3F7",
+        museum: "#CE93D8",
+        bar: "#FFB74D",
+        cafe: "#A5D6A7",
+        park: "#81C784",
+        shop: "#F48FB1",
+        attraction: "#FFD166",
+        other: "#90CAF9",
+      };
+      const CATEGORY_EMOJI = {
+        restaurant: "🍽",
+        hotel: "🏨",
+        museum: "🏛",
+        bar: "🍸",
+        cafe: "☕",
+        park: "🌿",
+        shop: "🛍",
+        attraction: "⭐",
+        other: "📍",
+      };
+
+      // ─── State ─────────────────────────────────────────────────────────────────
+      let map,
+        markers = [],
+        pinCount = 0;
+
+      // ─── YOUR ANTHROPIC API KEY ────────────────────────────────────────────────
+      // Replace the empty string below with your key: 'sk-ant-...'
+      const API_KEY = "";
+
+      // ─── Map init ──────────────────────────────────────────────────────────────
+      function initMap() {
+        map = L.map("map", { zoomControl: true }).setView([35, 10], 2);
+        L.tileLayer(
+          "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+          {
+            attribution: "© OpenStreetMap contributors © CARTO",
+            maxZoom: 19,
+          },
+        ).addTo(map);
+        map.zoomControl.setPosition("bottomright");
+      }
+
+      // ─── UI helpers ────────────────────────────────────────────────────────────
+      function autoResize(el) {
+        el.style.height = "auto";
+        el.style.height = Math.min(el.scrollHeight, 110) + "px";
+      }
+
+      function handleKey(e) {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          sendMessage();
+        }
+      }
+
+      function showThinking() {
+        const msgs = document.getElementById("messages");
+        const el = document.createElement("div");
+        el.className = "thinking";
+        el.innerHTML =
+          '<div class="d"></div><div class="d"></div><div class="d"></div>';
+        msgs.appendChild(el);
+        msgs.scrollTop = msgs.scrollHeight;
+        return el;
+      }
+
+      function addUserMessage(text) {
+        const msgs = document.getElementById("messages");
+        const el = document.createElement("div");
+        el.className = "msg user";
+        el.textContent = text;
+        msgs.appendChild(el);
+        msgs.scrollTop = msgs.scrollHeight;
+      }
+
+      function addAiMessage(reply, pois) {
+        const msgs = document.getElementById("messages");
+        const el = document.createElement("div");
+        el.className = "msg ai";
+        el.textContent = reply;
+
+        if (pois && pois.length) {
+          const list = document.createElement("div");
+          list.className = "poi-list";
+
+          pois.forEach((poi, i) => {
+            const cat = (poi.category || "other").toLowerCase();
+            const color = CATEGORY_COLORS[cat] || CATEGORY_COLORS.other;
+            const emoji = CATEGORY_EMOJI[cat] || CATEGORY_EMOJI.other;
+            const globalIndex = pinCount - pois.length + i + 1;
+
+            const item = document.createElement("div");
+            item.className = "poi-item";
+            item.innerHTML = `
+          <div class="poi-icon" style="background:${color}22;border:1px solid ${color}44">${emoji}</div>
+          <div class="poi-details">
+            <div class="poi-name">${poi.name}</div>
+            <div class="poi-type">${cat}</div>
+          </div>
+          <div class="poi-num">#${globalIndex}</div>`;
+            item.onclick = () =>
+              map.flyTo([poi.lat, poi.lon], 15, {
+                animate: true,
+                duration: 1.2,
+              });
+            list.appendChild(item);
+          });
+
+          el.appendChild(list);
+        }
+
+        msgs.appendChild(el);
+        msgs.scrollTop = msgs.scrollHeight;
+      }
+
+      // ─── Pin icon ──────────────────────────────────────────────────────────────
+      function createPinIcon(n, cat) {
+        const color =
+          CATEGORY_COLORS[(cat || "other").toLowerCase()] ||
+          CATEGORY_COLORS.other;
+        const emoji = CATEGORY_EMOJI[(cat || "other").toLowerCase()] || "📍";
+        return L.divIcon({
+          html: `<div style="position:relative;width:34px;height:44px;filter:drop-shadow(0 3px 6px rgba(0,0,0,0.6))">
+        <svg viewBox="0 0 34 44" xmlns="http://www.w3.org/2000/svg">
+          <path d="M17 2C10.37 2 5 7.37 5 14c0 9.5 12 28 12 28S29 23.5 29 14C29 7.37 23.63 2 17 2z"
+            fill="${color}" stroke="rgba(0,0,0,0.3)" stroke-width="1"/>
+          <circle cx="17" cy="14" r="8" fill="rgba(0,0,0,0.35)"/>
+        </svg>
+        <span style="position:absolute;top:6px;left:50%;transform:translateX(-50%);font-size:12px;line-height:1">${emoji}</span>
+      </div>`,
+          iconSize: [34, 44],
+          iconAnchor: [17, 44],
+          popupAnchor: [0, -44],
+          className: "",
+        });
+      }
+
+      // ─── Main send ─────────────────────────────────────────────────────────────
+      async function sendMessage() {
+        const input = document.getElementById("user-input");
+        const text = input.value.trim();
+        if (!text) return;
+
+        const btn = document.getElementById("send-btn");
+        btn.disabled = true;
+        input.value = "";
+        input.style.height = "auto";
+
+        addUserMessage(text);
+        const thinking = showThinking();
+
+        try {
+          const resp = await fetch("https://api.anthropic.com/v1/messages", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              // Uncomment the line below if running outside claude.ai (e.g. local server):
+              // 'x-api-key': API_KEY,
+              // 'anthropic-version': '2023-06-01',
+              // 'anthropic-dangerous-direct-browser-calls': 'true'
+            },
+            body: JSON.stringify({
+              model: "claude-sonnet-4-20250514",
+              max_tokens: 1000,
+              system: `You are a points-of-interest extractor. Extract ONLY specific POIs from the text: restaurants, cafes, hotels, bars, museums, shops, parks, attractions, and similar named venues or places of interest. Do NOT extract generic city or country names unless they describe a specific POI.
+For each POI provide its real-world GPS coordinates.
+Respond ONLY with valid JSON (no markdown, no backticks):
+{"reply":"brief friendly reply about what you found","pois":[{"name":"Sukiyabashi Jiro","category":"restaurant","lat":35.6721,"lon":139.7636,"description":"Legendary 3-Michelin-star sushi restaurant"}]}
+Categories: restaurant, hotel, museum, bar, cafe, park, shop, attraction, other.
+If no POIs found: {"reply":"...","pois":[]}`,
+              messages: [{ role: "user", content: text }],
+            }),
+          });
+
+          const data = await resp.json();
+          thinking.remove();
+
+          const raw = data.content?.map((b) => b.text || "").join("") || "";
+          let parsed;
+          try {
+            parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
+          } catch (e) {
+            parsed = { reply: raw || "Could not parse response.", pois: [] };
+          }
+
+          const pois = parsed.pois || [];
+
+          // Drop pins before building message so index aligns
+          const bounds = [];
+          pois.forEach((poi) => {
+            pinCount++;
+            document.getElementById("pin-count").textContent = pinCount;
+            const cat = (poi.category || "other").toLowerCase();
+            const marker = L.marker([poi.lat, poi.lon], {
+              icon: createPinIcon(pinCount, cat),
+            })
+              .bindPopup(
+                `
+            <div class="pop-type">${cat}</div>
+            <div class="pop-title">${poi.name}</div>
+            <div class="pop-desc">${poi.description || ""}</div>`,
+              )
+              .addTo(map);
+            markers.push(marker);
+            bounds.push([poi.lat, poi.lon]);
+          });
+
+          addAiMessage(parsed.reply || "Done!", pois);
+
+          if (bounds.length === 1) {
+            map.flyTo(bounds[0], 15, { animate: true, duration: 1.4 });
+          } else if (bounds.length > 1) {
+            map.flyToBounds(bounds, {
+              padding: [60, 60],
+              animate: true,
+              duration: 1.4,
+              maxZoom: 14,
+            });
+          }
+        } catch (e) {
+          thinking.remove();
+          addAiMessage(
+            "Connection error. Check your API key or network configuration.",
+          );
+          console.error(e);
+        }
+
+        btn.disabled = false;
+      }
+
+      // ─── Clear ─────────────────────────────────────────────────────────────────
+      function clearAll() {
+        markers.forEach((m) => m.remove());
+        markers = [];
+        pinCount = 0;
+        document.getElementById("pin-count").textContent = "0";
+        map.setView([35, 10], 2);
+        const msgs = document.getElementById("messages");
+        msgs.innerHTML =
+          '<div class="msg ai">Map cleared — ready for new POIs!</div>';
+      }
+
+      // ─── Boot ──────────────────────────────────────────────────────────────────
+      window.addEventListener("load", initMap);
+    </script>
+  </body>
+</html>
