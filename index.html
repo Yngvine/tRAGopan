@@ -51,8 +51,16 @@
       body {
         font-family: "DM Sans", sans-serif;
         background:
-          radial-gradient(1200px 600px at 8% 10%, rgba(255, 179, 71, 0.12), transparent 65%),
-          radial-gradient(900px 520px at 92% 24%, rgba(36, 192, 169, 0.18), transparent 65%),
+          radial-gradient(
+            1200px 600px at 8% 10%,
+            rgba(255, 179, 71, 0.12),
+            transparent 65%
+          ),
+          radial-gradient(
+            900px 520px at 92% 24%,
+            rgba(36, 192, 169, 0.18),
+            transparent 65%
+          ),
           linear-gradient(150deg, var(--c-bg) 0%, var(--c-bg2) 100%);
         color: var(--c-text);
         min-height: 100dvh;
@@ -228,7 +236,11 @@
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 8px;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0));
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.03),
+          rgba(0, 0, 0, 0)
+        );
       }
       .quick-chip {
         border: 1px solid var(--c-border);
@@ -385,7 +397,9 @@
         max-height: 110px;
         line-height: 1.5;
         outline: none;
-        transition: border-color 0.2s, box-shadow 0.2s;
+        transition:
+          border-color 0.2s,
+          box-shadow 0.2s;
       }
       textarea:focus {
         border-color: rgba(36, 192, 169, 0.65);
@@ -440,11 +454,19 @@
         content: "";
         position: absolute;
         inset: 0;
-        background: linear-gradient(180deg, rgba(1, 8, 12, 0.02), rgba(1, 8, 12, 0.28));
+        background: linear-gradient(
+          180deg,
+          rgba(1, 8, 12, 0.02),
+          rgba(1, 8, 12, 0.28)
+        );
         pointer-events: none;
       }
       body.light #map-panel::after {
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(160, 190, 210, 0.18));
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.06),
+          rgba(160, 190, 210, 0.18)
+        );
       }
       .map-badge {
         position: absolute;
@@ -765,19 +787,27 @@
         <div id="quick-actions">
           <button
             class="quick-chip"
-            onclick="useQuickPrompt('Show municipality boundaries in municipality of Pamplona')"
+            onclick="
+              useQuickPrompt(
+                'Show municipality boundaries in municipality of Pamplona',
+              )
+            "
           >
             Municipality Boundaries
           </button>
           <button
             class="quick-chip"
-            onclick="useQuickPrompt('Show rivers layer in municipality of Tudela')"
+            onclick="
+              useQuickPrompt('Show rivers layer in municipality of Tudela')
+            "
           >
             Rivers In Tudela
           </button>
           <button
             class="quick-chip"
-            onclick="useQuickPrompt('Show roads layer in municipality of Estella')"
+            onclick="
+              useQuickPrompt('Show roads layer in municipality of Estella')
+            "
           >
             Roads In Estella
           </button>
@@ -788,11 +818,20 @@
             flow with tools: municipality boundary, WFS capabilities, layer
             selection, and spatial filtering.<br /><br />
             <span style="font-size: 11.5px; color: var(--c-muted)"
-              >Try: <em>"Show schools layer in municipality of Pamplona"</em></span
+              >Try:
+              <em>"Show schools layer in municipality of Pamplona"</em></span
             >
           </div>
         </div>
         <div id="input-area">
+          <button
+            id="load-more-btn"
+            class="clear-btn"
+            style="display: none"
+            onclick="loadMoreResults()"
+          >
+            cargar mas
+          </button>
           <textarea
             id="user-input"
             placeholder="Ask for a layer and municipality..."
@@ -850,6 +889,9 @@
       let geoLayers = [];
       let featureCount = 0;
       let pendingPrompt = "";
+      let conversationId = null;
+      let lastPagination = null;
+      let lastSelectedLayer = null;
 
       // ─── Map init ──────────────────────────────────────────────────────────────
       function initMap() {
@@ -941,6 +983,23 @@
         if (featuresEl) featuresEl.textContent = String(features);
       }
 
+      function setLoadMoreState(pagination) {
+        const btn = document.getElementById("load-more-btn");
+        if (!btn) return;
+        if (
+          pagination &&
+          pagination.has_more &&
+          Number.isFinite(pagination.next_cursor)
+        ) {
+          lastPagination = pagination;
+          btn.style.display = "inline-flex";
+          btn.disabled = false;
+          return;
+        }
+        lastPagination = null;
+        btn.style.display = "none";
+      }
+
       function addUserMessage(text) {
         const msgs = document.getElementById("messages");
         const el = document.createElement("div");
@@ -950,11 +1009,23 @@
         msgs.scrollTop = msgs.scrollHeight;
       }
 
-      function addAiMessage(reply, layerCandidates = []) {
+      function addAiMessage(reply, layerCandidates = [], warnings = []) {
         const msgs = document.getElementById("messages");
         const el = document.createElement("div");
         el.className = "msg ai";
         el.textContent = reply;
+
+        if (warnings.length) {
+          const warn = document.createElement("div");
+          warn.className = "poi-list";
+          warnings.forEach((message) => {
+            const item = document.createElement("div");
+            item.className = "poi-item";
+            item.innerHTML = `<div class="poi-icon" style="background:#e5a03822;border:1px solid #e5a03866">!</div><div class="poi-details"><div class="poi-name">Warning</div><div class="poi-type">${message}</div></div>`;
+            warn.appendChild(item);
+          });
+          el.appendChild(warn);
+        }
 
         if (layerCandidates.length) {
           const list = document.createElement("div");
@@ -974,7 +1045,10 @@
               if (!pendingPrompt) {
                 return;
               }
-              sendMessage({ promptOverride: pendingPrompt, selectedLayer: layer.name });
+              sendMessage({
+                promptOverride: pendingPrompt,
+                selectedLayer: layer.name,
+              });
             };
             list.appendChild(item);
           });
@@ -986,20 +1060,28 @@
         msgs.scrollTop = msgs.scrollHeight;
       }
 
-      function paintGeoJSON(geojson) {
+      function paintGeoJSON(geojson, style = {}) {
+        const polygonStroke = style.stroke || "#ffd166";
+        const polygonFill = style.fill || "#ffd166";
+        const polygonFillOpacity = Number.isFinite(style.fillOpacity)
+          ? style.fillOpacity
+          : 0.15;
+        const pointColor = style.pointColor || "#7b6ff0";
+        const pointRadius = Number.isFinite(style.radius) ? style.radius : 5;
+
         const layer = L.geoJSON(geojson, {
           style: {
-            color: "#ffd166",
+            color: polygonStroke,
             weight: 2,
-            fillColor: "#ffd166",
-            fillOpacity: 0.15,
+            fillColor: polygonFill,
+            fillOpacity: polygonFillOpacity,
           },
           pointToLayer: (feature, latlng) =>
             L.circleMarker(latlng, {
-              radius: 5,
-              color: "#7b6ff0",
+              radius: pointRadius,
+              color: pointColor,
               weight: 1,
-              fillColor: "#7b6ff0",
+              fillColor: pointColor,
               fillOpacity: 0.8,
             }),
           onEachFeature: (feature, l) => {
@@ -1009,7 +1091,9 @@
               .map(([k, v]) => `<div><strong>${k}</strong>: ${v}</div>`)
               .join("");
             if (rows) {
-              l.bindPopup(`<div class="pop-title">Feature</div><div class="pop-desc">${rows}</div>`);
+              l.bindPopup(
+                `<div class="pop-title">Feature</div><div class="pop-desc">${rows}</div>`,
+              );
             }
           },
         }).addTo(map);
@@ -1032,6 +1116,66 @@
         }
       }
 
+      function applyActions(actions = [], geojson = null) {
+        if (!Array.isArray(actions) || actions.length === 0) {
+          if (geojson && Array.isArray(geojson.features)) {
+            paintGeoJSON(geojson);
+          }
+          return;
+        }
+
+        actions.forEach((action) => {
+          const type = action?.type;
+          if (type === "clear_layers") {
+            geoLayers.forEach((layer) => layer.remove());
+            geoLayers = [];
+            featureCount = 0;
+            document.getElementById("pin-count").textContent = "0";
+            return;
+          }
+
+          if (
+            type === "add_layer" &&
+            geojson &&
+            Array.isArray(geojson.features)
+          ) {
+            paintGeoJSON(geojson, action.style || {});
+            return;
+          }
+
+          if (type === "fit_bounds") {
+            const lastLayer = geoLayers[geoLayers.length - 1];
+            if (lastLayer) {
+              const bounds = lastLayer.getBounds();
+              if (bounds.isValid()) {
+                map.fitBounds(bounds, {
+                  padding: [60, 60],
+                  animate: true,
+                  duration: 1.2,
+                  maxZoom: 15,
+                });
+              }
+            }
+          }
+        });
+      }
+
+      function loadMoreResults() {
+        if (
+          !pendingPrompt ||
+          !lastPagination ||
+          !Number.isFinite(lastPagination.next_cursor)
+        ) {
+          return;
+        }
+        sendMessage({
+          promptOverride: pendingPrompt,
+          selectedLayer: lastSelectedLayer,
+          paginationCursor: lastPagination.next_cursor,
+          loadMore: true,
+        });
+      }
+
       // ─── Main send ─────────────────────────────────────────────────────────────
       async function sendMessage(options = {}) {
         const input = document.getElementById("user-input");
@@ -1041,7 +1185,7 @@
         const btn = document.getElementById("send-btn");
         btn.disabled = true;
         updateInsights({ status: "Running" });
-        if (!options.promptOverride) {
+        if (!options.promptOverride || !options.loadMore) {
           input.value = "";
           input.style.height = "auto";
           addUserMessage(text);
@@ -1058,6 +1202,11 @@
             body: JSON.stringify({
               prompt: text,
               selected_layer: options.selectedLayer || null,
+              conversation_id: conversationId,
+              pagination_cursor: Number.isFinite(options.paginationCursor)
+                ? options.paginationCursor
+                : 0,
+              page_size: 500,
             }),
           });
 
@@ -1066,25 +1215,41 @@
 
           if (!resp.ok) {
             updateInsights({ status: "Failed" });
-            addAiMessage(data.error || "Backend error while running the agent workflow.");
+            addAiMessage(
+              data.error || "Backend error while running the agent workflow.",
+            );
+            setLoadMoreState(null);
             btn.disabled = false;
             return;
+          }
+
+          if (data.conversation_id) {
+            conversationId = data.conversation_id;
+          }
+          if (data.selected_layer) {
+            lastSelectedLayer = data.selected_layer;
           }
 
           updateInsights({
             municipality: data.municipality || "-",
             selected_layer: data.selected_layer || "-",
-            status: data.needs_layer_selection ? "Needs Selection" : "Completed",
+            status: data.needs_layer_selection
+              ? "Needs Selection"
+              : "Completed",
             features: data.geojson?.features?.length ?? featureCount,
           });
-          addAiMessage(data.reply || "Done.", data.layer_candidates || []);
-          if (data.geojson && Array.isArray(data.geojson.features)) {
-            paintGeoJSON(data.geojson);
-          }
+          addAiMessage(
+            data.reply || "Done.",
+            data.layer_candidates || [],
+            data.warnings || [],
+          );
+          applyActions(data.actions || [], data.geojson || null);
+          setLoadMoreState(data.pagination || null);
         } catch (e) {
           updateInsights({ status: "Offline" });
           thinking.remove();
           addAiMessage("Connection error. Check backend availability.");
+          setLoadMoreState(null);
           console.error(e);
         }
 
@@ -1097,6 +1262,9 @@
         geoLayers = [];
         featureCount = 0;
         pendingPrompt = "";
+        conversationId = null;
+        lastSelectedLayer = null;
+        setLoadMoreState(null);
         document.getElementById("pin-count").textContent = "0";
         updateInsights({
           municipality: "-",

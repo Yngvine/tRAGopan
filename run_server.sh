@@ -12,8 +12,8 @@ Options:
   --host <host>             Host to bind (default: 127.0.0.1)
   --port <port>             Preferred port (default: 8001)
   --provider <provider>     LLM provider: ollama|rules (default: ollama)
-  --ollama-url <url>        Ollama base URL (default: http://127.0.0.1:11434)
-  --ollama-model <model>    Ollama model (default: llama3.1:8b)
+  --ollama-url <url>        Ollama base URL (default: https://eim-alu-83071.tail3405b4.ts.net/)
+  --ollama-model <model>    Ollama model (default: llama3-groq-tool-use)
   --no-auto-port            Do not search for next free port if occupied
   -h, --help                Show this help
 
@@ -27,8 +27,8 @@ EOF
 HOST="127.0.0.1"
 PORT="8001"
 LLM_PROVIDER="ollama"
-OLLAMA_BASE_URL="http://127.0.0.1:11434"
-OLLAMA_MODEL="llama3.1:8b"
+OLLAMA_BASE_URL="https://eim-alu-83071.tail3405b4.ts.net/"
+OLLAMA_MODEL="llama3-groq-tool-use"
 AUTO_PORT=1
 
 while [[ $# -gt 0 ]]; do

@@ -6,6 +6,8 @@ import unicodedata
 from typing import Any
 import xml.etree.ElementTree as ET
 import httpx
+from shapely.geometry import shape
+from shapely.ops import unary_union
 
 
 class IdenaClient:
@@ -22,6 +24,8 @@ class IdenaClient:
         self.timeout = timeout
         self._capabilities_cache: list[dict[str, str]] = []
         self._capabilities_cached_at: float = 0.0
+        self._municipalities_cache: list[str] = []
+        self._municipalities_cached_at: float = 0.0
 
     async def _request_wfs(self, params: dict[str, Any]) -> httpx.Response:
         async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=True) as client:
@@ -107,6 +111,7 @@ class IdenaClient:
         type_name: str,
         bbox: tuple[float, float, float, float] | None = None,
         count: int = 2000,
+        start_index: int = 0,
         cql_filter: str | None = None,
     ) -> dict[str, Any]:
         params: dict[str, str] = {
@@ -118,11 +123,245 @@ class IdenaClient:
             "srsName": "EPSG:4326",
             "count": str(count),
         }
+        if start_index > 0:
+            params["startIndex"] = str(start_index)
         if bbox is not None:
             params["bbox"] = f"{bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]},EPSG:4326"
         if cql_filter:
             params["cql_filter"] = cql_filter
         return await self._get_wfs(params)
+
+    async def list_municipalities(self, ttl_seconds: int = 3600) -> list[str]:
+        now = time.time()
+        if self._municipalities_cache and (now - self._municipalities_cached_at) < ttl_seconds:
+            return self._municipalities_cache
+
+        data = await self.get_layer_features(type_name=self.MUNICIPIOS_TYPENAME, count=1500)
+        names: set[str] = set()
+        for feature in data.get("features", []):
+            props = feature.get("properties", {})
+            for key in ("MUNICIPIO", "municipio", "nombre", "name"):
+                value = props.get(key)
+                if isinstance(value, str) and value.strip():
+                    names.add(value.strip())
+                    break
+
+        ordered = sorted(names)
+        self._municipalities_cache = ordered
+        self._municipalities_cached_at = now
+        return ordered
+
+    async def get_toponyms_in_municipality(
+        self,
+        municipality_name: str,
+        q: str | None = None,
+        limit: int = 500,
+        start_index: int = 0,
+        page_scan_size: int = 500,
+        max_scan_pages: int = 8,
+    ) -> dict[str, Any]:
+        boundary = await self.get_municipality_boundary(municipality_name)
+        muni_features = boundary.get("features", [])
+        if not muni_features:
+            return {
+                "type": "FeatureCollection",
+                "features": [],
+                "municipality": municipality_name,
+                "warnings": [f"Municipality '{municipality_name}' not found."],
+            }
+
+        muni_geometries = [shape(feat["geometry"]) for feat in muni_features if feat.get("geometry")]
+        muni_geometry = unary_union(muni_geometries)
+        minx, miny, maxx, maxy = muni_geometry.bounds
+
+        query_norm = self._normalize_text(q or "")
+        target_count = max(1, min(2000, int(limit)))
+        scan_size = max(50, min(2000, int(page_scan_size)))
+        cursor = max(0, int(start_index))
+
+        filtered_features: list[dict[str, Any]] = []
+        scanned_pages = 0
+        reached_end = False
+
+        while len(filtered_features) < target_count and scanned_pages < max_scan_pages:
+            data = await self.get_layer_features(
+                type_name=self.TOPONIMIA_TYPENAME,
+                bbox=(minx, miny, maxx, maxy),
+                count=scan_size,
+                start_index=cursor,
+            )
+            raw_features = data.get("features", [])
+            raw_count = len(raw_features)
+            if raw_count == 0:
+                reached_end = True
+                break
+
+            for feature in raw_features:
+                geom_data = feature.get("geometry")
+                if not geom_data:
+                    continue
+                try:
+                    feature_geom = shape(geom_data)
+                except Exception:
+                    continue
+                if not (feature_geom.is_valid and feature_geom.intersects(muni_geometry)):
+                    continue
+
+                if query_norm:
+                    props = feature.get("properties", {})
+                    name_value = self._pick_name_value(props)
+                    if query_norm not in self._normalize_text(name_value):
+                        continue
+
+                filtered_features.append(feature)
+                if len(filtered_features) >= target_count:
+                    break
+
+            cursor += raw_count
+            scanned_pages += 1
+            if raw_count < scan_size:
+                reached_end = True
+                break
+
+        warnings: list[str] = []
+        if scanned_pages >= max_scan_pages and len(filtered_features) < target_count:
+            warnings.append(
+                "Toponym query scanned max pages. Results may be partial; use 'cargar mas'."
+            )
+
+        has_more = not reached_end
+
+        return {
+            "type": "FeatureCollection",
+            "features": filtered_features,
+            "municipality": municipality_name,
+            "query": q,
+            "count": len(filtered_features),
+            "pagination": {
+                "has_more": has_more,
+                "next_cursor": cursor if has_more else None,
+                "page_size": target_count,
+            },
+            "warnings": warnings,
+        }
+
+    async def get_layer_in_municipality(
+        self,
+        layer_hint: str,
+        municipality_name: str,
+        limit: int = 500,
+        selected_layer: str | None = None,
+        start_index: int = 0,
+        page_scan_size: int = 500,
+        max_scan_pages: int = 8,
+    ) -> dict[str, Any]:
+        capabilities = await self.get_capabilities(ttl_seconds=900)
+        chosen_layer: dict[str, str] | None = None
+        if selected_layer:
+            selected_norm = selected_layer.strip().lower()
+            for layer in capabilities:
+                if layer.get("name", "").lower() == selected_norm:
+                    chosen_layer = layer
+                    break
+
+        candidates = self.search_layers(capabilities, layer_hint, limit=3)
+        if chosen_layer is None and candidates:
+            chosen_layer = candidates[0]
+
+        if not chosen_layer:
+            return {
+                "error": "No compatible WFS layers were found for that request.",
+                "layer_candidates": candidates,
+                "needs_layer_selection": False,
+            }
+
+        if len(candidates) > 1 and not selected_layer:
+            return {
+                "layer_candidates": candidates,
+                "needs_layer_selection": True,
+            }
+
+        boundary = await self.get_municipality_boundary(municipality_name)
+        muni_features = boundary.get("features", [])
+        if not muni_features:
+            return {
+                "error": f"Municipality '{municipality_name}' was not found.",
+                "needs_layer_selection": False,
+            }
+
+        muni_geometries = [shape(feat["geometry"]) for feat in muni_features if feat.get("geometry")]
+        muni_geometry = unary_union(muni_geometries)
+        minx, miny, maxx, maxy = muni_geometry.bounds
+
+        target_count = max(1, min(2000, int(limit)))
+        scan_size = max(50, min(2000, int(page_scan_size)))
+        cursor = max(0, int(start_index))
+        filtered_features: list[dict[str, Any]] = []
+        scanned_pages = 0
+        reached_end = False
+        while len(filtered_features) < target_count and scanned_pages < max_scan_pages:
+            raw = await self.get_layer_features(
+                type_name=chosen_layer["name"],
+                bbox=(minx, miny, maxx, maxy),
+                count=scan_size,
+                start_index=cursor,
+            )
+            raw_features = raw.get("features", [])
+            raw_count = len(raw_features)
+            if raw_count == 0:
+                reached_end = True
+                break
+
+            for feature in raw_features:
+                geom_data = feature.get("geometry")
+                if not geom_data:
+                    continue
+                try:
+                    feature_geom = shape(geom_data)
+                except Exception:
+                    continue
+                if feature_geom.is_valid and feature_geom.intersects(muni_geometry):
+                    filtered_features.append(feature)
+                    if len(filtered_features) >= target_count:
+                        break
+
+            cursor += raw_count
+            scanned_pages += 1
+            if raw_count < scan_size:
+                reached_end = True
+                break
+
+        warnings: list[str] = []
+        if scanned_pages >= max_scan_pages and len(filtered_features) < target_count:
+            warnings.append(
+                "Layer query scanned max pages. Results may be partial; use 'cargar mas'."
+            )
+
+        has_more = not reached_end
+
+        return {
+            "reply": (
+                f"Found {len(filtered_features)} features in layer '{chosen_layer['name']}' "
+                f"intersecting municipality '{municipality_name}'."
+            ),
+            "municipality": municipality_name,
+            "selected_layer": chosen_layer["name"],
+            "layer_candidates": candidates,
+            "needs_layer_selection": False,
+            "geojson": {
+                "type": "FeatureCollection",
+                "features": filtered_features,
+                "selected_layer": chosen_layer["name"],
+                "municipality": municipality_name,
+            },
+            "count": len(filtered_features),
+            "pagination": {
+                "has_more": has_more,
+                "next_cursor": cursor if has_more else None,
+                "page_size": target_count,
+            },
+            "warnings": warnings,
+        }
 
     @staticmethod
     def _pick_name_value(props: dict[str, Any]) -> str:
