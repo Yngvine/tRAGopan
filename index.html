@@ -1060,7 +1060,8 @@
         msgs.scrollTop = msgs.scrollHeight;
       }
 
-      function paintGeoJSON(geojson, style = {}) {
+      function paintGeoJSON(geojson, style = {}, options = {}) {
+        const countInStats = options.countInStats !== false;
         const polygonStroke = style.stroke || "#ffd166";
         const polygonFill = style.fill || "#ffd166";
         const polygonFillOpacity = Number.isFinite(style.fillOpacity)
@@ -1101,9 +1102,12 @@
         geoLayers.push(layer);
 
         const count = (geojson.features || []).length;
-        featureCount += count;
-        document.getElementById("pin-count").textContent = String(featureCount);
-        updateInsights({ features: featureCount, status: "Rendered" });
+        if (countInStats) {
+          featureCount += count;
+          document.getElementById("pin-count").textContent =
+            String(featureCount);
+          updateInsights({ features: featureCount, status: "Rendered" });
+        }
 
         const bounds = layer.getBounds();
         if (bounds.isValid()) {
@@ -1116,7 +1120,7 @@
         }
       }
 
-      function applyActions(actions = [], geojson = null) {
+      function applyActions(actions = [], geojson = null, sources = {}) {
         if (!Array.isArray(actions) || actions.length === 0) {
           if (geojson && Array.isArray(geojson.features)) {
             paintGeoJSON(geojson);
@@ -1134,12 +1138,17 @@
             return;
           }
 
-          if (
-            type === "add_layer" &&
-            geojson &&
-            Array.isArray(geojson.features)
-          ) {
-            paintGeoJSON(geojson, action.style || {});
+          if (type === "add_layer") {
+            const sourceName = action?.source || "geojson";
+            const sourceGeoJSON =
+              sourceName === "municipality_geojson"
+                ? sources.municipality_geojson
+                : geojson;
+            if (sourceGeoJSON && Array.isArray(sourceGeoJSON.features)) {
+              paintGeoJSON(sourceGeoJSON, action.style || {}, {
+                countInStats: action.count_in_stats !== false,
+              });
+            }
             return;
           }
 
@@ -1243,7 +1252,9 @@
             data.layer_candidates || [],
             data.warnings || [],
           );
-          applyActions(data.actions || [], data.geojson || null);
+          applyActions(data.actions || [], data.geojson || null, {
+            municipality_geojson: data.municipality_geojson || null,
+          });
           setLoadMoreState(data.pagination || null);
         } catch (e) {
           updateInsights({ status: "Offline" });

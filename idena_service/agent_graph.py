@@ -1250,7 +1250,13 @@ class AgentGeoService:
                 "filtered_geojson": municipality_geojson,
                 "actions": [
                     {"type": "clear_layers"},
-                    {"type": "add_layer", "layer_role": "municipality_boundary", "source": "geojson"},
+                    {
+                        "type": "add_layer",
+                        "layer_role": "municipality_boundary",
+                        "source": "municipality_geojson",
+                        "style": {"stroke": "#63d9c3", "fill": "#63d9c3", "fillOpacity": 0.06},
+                        "count_in_stats": False,
+                    },
                     {"type": "fit_bounds", "source": "geojson"},
                 ],
                 "warnings": warnings,
@@ -1330,16 +1336,36 @@ class AgentGeoService:
             )
         return {
             "reply": reply_text,
-            "actions": [
-                {"type": "clear_layers"},
-                {
-                    "type": "add_layer",
-                    "layer_role": "filtered_layer",
-                    "source": "geojson",
-                    "style": {"stroke": "#ffd166", "fill": "#ffd166", "fillOpacity": 0.15},
-                },
-                {"type": "fit_bounds", "source": "geojson"},
-            ],
+            "actions": (
+                [
+                    {"type": "clear_layers"},
+                    {
+                        "type": "add_layer",
+                        "layer_role": "municipality_boundary",
+                        "source": "municipality_geojson",
+                        "style": {"stroke": "#63d9c3", "fill": "#63d9c3", "fillOpacity": 0.05},
+                        "count_in_stats": False,
+                    },
+                    {
+                        "type": "add_layer",
+                        "layer_role": "filtered_layer",
+                        "source": "geojson",
+                        "style": {"stroke": "#ffd166", "fill": "#ffd166", "fillOpacity": 0.15},
+                    },
+                    {"type": "fit_bounds", "source": "geojson"},
+                ]
+                if not state.get("global_scope")
+                else [
+                    {"type": "clear_layers"},
+                    {
+                        "type": "add_layer",
+                        "layer_role": "filtered_layer",
+                        "source": "geojson",
+                        "style": {"stroke": "#ffd166", "fill": "#ffd166", "fillOpacity": 0.15},
+                    },
+                    {"type": "fit_bounds", "source": "geojson"},
+                ]
+            ),
             "warnings": warnings,
             "conversation_context": {
                 "municipality": None if state.get("global_scope") else municipality,
@@ -1444,6 +1470,7 @@ class AgentGeoService:
             "layer_candidates": result.get("layer_candidates", []),
             "needs_layer_selection": bool(result.get("needs_layer_selection")),
             "geojson": result.get("filtered_geojson"),
+            "municipality_geojson": result.get("municipality_geojson"),
             "actions": result.get("actions", []),
             "warnings": result.get("warnings", []),
             "pagination": result.get("pagination", {}),
