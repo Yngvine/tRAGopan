@@ -10,7 +10,7 @@
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link
-      href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&family=Sora:wght@500;600;700&display=swap"
       rel="stylesheet"
     />
     <style>
@@ -20,43 +20,70 @@
         padding: 0;
       }
       :root {
-        --c-bg: #080b10;
-        --c-surface: #0f1319;
-        --c-surface2: #161c26;
-        --c-border: #1e2535;
-        --c-accent: #ffd166;
-        --c-accent2: #7b6ff0;
-        --c-text: #e8ebf2;
-        --c-muted: #5a6278;
+        --header-h: 62px;
+        --c-bg: #091420;
+        --c-bg2: #0e2335;
+        --c-surface: rgba(8, 22, 33, 0.72);
+        --c-surface2: rgba(14, 35, 53, 0.82);
+        --c-border: rgba(153, 184, 214, 0.18);
+        --c-accent: #ffb347;
+        --c-accent2: #24c0a9;
+        --c-warm: #ffd09d;
+        --c-text: #e9f4ff;
+        --c-muted: #a3bdd5;
+        --radius-xl: 22px;
+        --radius-lg: 14px;
+        --shadow-strong: 0 20px 60px rgba(4, 10, 16, 0.55);
+      }
+      body.light {
+        --c-bg: #f8ede0;
+        --c-bg2: #dbeaf7;
+        --c-surface: rgba(255, 252, 247, 0.78);
+        --c-surface2: rgba(247, 255, 255, 0.86);
+        --c-border: rgba(32, 66, 97, 0.2);
+        --c-accent: #de7a27;
+        --c-accent2: #0f9f90;
+        --c-warm: #8d3f10;
+        --c-text: #112739;
+        --c-muted: #39566d;
+        --shadow-strong: 0 20px 45px rgba(64, 96, 120, 0.24);
       }
       body {
         font-family: "DM Sans", sans-serif;
-        background: var(--c-bg);
+        background:
+          radial-gradient(1200px 600px at 8% 10%, rgba(255, 179, 71, 0.12), transparent 65%),
+          radial-gradient(900px 520px at 92% 24%, rgba(36, 192, 169, 0.18), transparent 65%),
+          linear-gradient(150deg, var(--c-bg) 0%, var(--c-bg2) 100%);
         color: var(--c-text);
-        height: 100vh;
+        min-height: 100dvh;
+        height: 100dvh;
         display: flex;
         flex-direction: column;
         overflow: hidden;
+        transition: background 0.25s ease;
       }
 
       /* ── Header ── */
       #header {
         display: flex;
         align-items: center;
-        gap: 10px;
-        padding: 11px 18px;
+        gap: 12px;
+        padding: 14px 20px;
         border-bottom: 1px solid var(--c-border);
-        background: var(--c-surface);
+        background: rgba(7, 17, 26, 0.65);
+        backdrop-filter: blur(12px);
         flex-shrink: 0;
       }
       .logo {
-        width: 26px;
-        height: 26px;
+        width: 32px;
+        height: 32px;
         display: flex;
         align-items: center;
         justify-content: center;
         overflow: hidden;
-        border-radius: 7px;
+        border-radius: 10px;
+        border: 1px solid var(--c-border);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.28);
       }
       .logo img {
         width: 100%;
@@ -65,11 +92,11 @@
         display: block;
       }
       #header h1 {
-        font-family: "Space Mono", monospace;
-        font-size: 12px;
+        font-family: "Sora", sans-serif;
+        font-size: 16px;
         font-weight: 700;
-        letter-spacing: 0.08em;
-        color: var(--c-accent);
+        letter-spacing: 0.03em;
+        color: var(--c-warm);
       }
       #header .sub {
         font-size: 11px;
@@ -77,26 +104,67 @@
         margin-left: 4px;
         font-family: "Space Mono", monospace;
       }
+      .status-chip {
+        margin-left: auto;
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(36, 192, 169, 0.42);
+        background: rgba(36, 192, 169, 0.16);
+        font-size: 10px;
+        color: #b8fff4;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-family: "Space Mono", monospace;
+      }
+      .theme-btn {
+        margin-left: 8px;
+        border: 1px solid var(--c-border);
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--c-text);
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 10px;
+        font-family: "Space Mono", monospace;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      .theme-btn:hover {
+        transform: translateY(-1px);
+        border-color: rgba(255, 179, 71, 0.62);
+      }
 
       /* ── Layout ── */
       #main {
         display: flex;
         flex: 1;
+        height: calc(100dvh - var(--header-h));
+        min-height: 0;
         overflow: hidden;
+        padding: 16px;
+        gap: 12px;
       }
 
       /* ── Chat Panel ── */
       #chat-panel {
-        width: 390px;
-        min-width: 280px;
+        width: 440px;
+        min-width: 320px;
+        height: 100%;
+        min-height: 0;
         display: flex;
         flex-direction: column;
         background: var(--c-surface);
-        border-right: 1px solid var(--c-border);
+        border: 1px solid var(--c-border);
+        border-radius: var(--radius-xl);
+        box-shadow: var(--shadow-strong);
+        backdrop-filter: blur(14px);
         flex-shrink: 0;
+        overflow: hidden;
+        transition: border-color 0.2s ease;
       }
       #chat-top {
-        padding: 12px 16px;
+        padding: 14px 16px;
         border-bottom: 1px solid var(--c-border);
         display: flex;
         align-items: center;
@@ -118,57 +186,99 @@
           opacity: 0.3;
         }
       }
-      #chat-top span {
-        font-size: 11px;
+      .chat-title {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .chat-title strong {
+        font-family: "Sora", sans-serif;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--c-text);
+        letter-spacing: 0.01em;
+      }
+      .chat-title span {
+        font-size: 10px;
         color: var(--c-muted);
         font-family: "Space Mono", monospace;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
       }
       .clear-btn {
         margin-left: auto;
         font-size: 10px;
-        color: var(--c-muted);
-        background: none;
+        color: var(--c-text);
+        background: rgba(255, 255, 255, 0.04);
         border: 1px solid var(--c-border);
-        border-radius: 5px;
-        padding: 3px 9px;
+        border-radius: 8px;
+        padding: 5px 10px;
         cursor: pointer;
         font-family: "Space Mono", monospace;
-        transition: all 0.2s;
+        transition: all 0.2s ease;
       }
       .clear-btn:hover {
+        color: #fff;
+        border-color: rgba(255, 255, 255, 0.32);
+        transform: translateY(-1px);
+      }
+      #quick-actions {
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--c-border);
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0));
+      }
+      .quick-chip {
+        border: 1px solid var(--c-border);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.03);
         color: var(--c-text);
-        border-color: var(--c-muted);
+        padding: 6px 10px;
+        font-size: 10px;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        font-family: "Space Mono", monospace;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-align: left;
+      }
+      .quick-chip:hover {
+        border-color: rgba(255, 179, 71, 0.5);
+        background: rgba(255, 179, 71, 0.16);
+        color: #fff3dd;
       }
 
       /* ── Messages ── */
       #messages {
         flex: 1;
         overflow-y: auto;
-        padding: 14px;
+        padding: 16px;
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: 11px;
         scroll-behavior: smooth;
       }
       #messages::-webkit-scrollbar {
-        width: 3px;
+        width: 6px;
       }
       #messages::-webkit-scrollbar-thumb {
-        background: var(--c-border);
-        border-radius: 2px;
+        background: rgba(146, 181, 212, 0.32);
+        border-radius: 8px;
       }
       .msg {
         max-width: 92%;
-        padding: 10px 13px;
-        border-radius: 12px;
+        padding: 12px 14px;
+        border-radius: var(--radius-lg);
         font-size: 13px;
         line-height: 1.6;
-        animation: fi 0.25s ease;
+        animation: fi 0.28s ease;
       }
       @keyframes fi {
         from {
           opacity: 0;
-          transform: translateY(5px);
+          transform: translateY(8px);
         }
         to {
           opacity: 1;
@@ -176,16 +286,18 @@
         }
       }
       .msg.user {
-        background: var(--c-accent2);
+        background: linear-gradient(130deg, #1fa993, #2ecdb3);
         color: #fff;
         align-self: flex-end;
-        border-bottom-right-radius: 3px;
+        border-bottom-right-radius: 5px;
+        box-shadow: 0 10px 24px rgba(10, 80, 69, 0.4);
       }
       .msg.ai {
         background: var(--c-surface2);
         border: 1px solid var(--c-border);
         align-self: flex-start;
-        border-bottom-left-radius: 3px;
+        border-bottom-left-radius: 5px;
+        box-shadow: 0 8px 22px rgba(0, 0, 0, 0.22);
       }
 
       /* ── POI list inside message ── */
@@ -201,16 +313,17 @@
         display: flex;
         align-items: center;
         gap: 8px;
-        padding: 6px 9px;
+        padding: 7px 10px;
         border-radius: 8px;
-        background: rgba(0, 0, 0, 0.25);
+        background: rgba(255, 255, 255, 0.02);
         border: 1px solid var(--c-border);
         cursor: pointer;
         transition: all 0.2s;
       }
       .poi-item:hover {
-        border-color: var(--c-accent);
-        background: rgba(255, 209, 102, 0.06);
+        border-color: rgba(255, 179, 71, 0.48);
+        background: rgba(255, 179, 71, 0.12);
+        transform: translateY(-1px);
       }
       .poi-icon {
         width: 26px;
@@ -251,18 +364,19 @@
 
       /* ── Input area ── */
       #input-area {
-        padding: 12px;
+        padding: 13px;
         border-top: 1px solid var(--c-border);
         display: flex;
         gap: 7px;
         align-items: flex-end;
+        background: rgba(4, 14, 22, 0.5);
       }
       textarea {
         flex: 1;
-        background: var(--c-surface2);
+        background: rgba(255, 255, 255, 0.03);
         border: 1px solid var(--c-border);
-        border-radius: 9px;
-        padding: 9px 13px;
+        border-radius: 11px;
+        padding: 10px 13px;
         color: var(--c-text);
         font-size: 13px;
         font-family: "DM Sans", sans-serif;
@@ -271,30 +385,32 @@
         max-height: 110px;
         line-height: 1.5;
         outline: none;
-        transition: border-color 0.2s;
+        transition: border-color 0.2s, box-shadow 0.2s;
       }
       textarea:focus {
-        border-color: var(--c-accent2);
+        border-color: rgba(36, 192, 169, 0.65);
+        box-shadow: 0 0 0 3px rgba(36, 192, 169, 0.14);
       }
       textarea::placeholder {
         color: var(--c-muted);
       }
       #send-btn {
-        width: 36px;
-        height: 36px;
-        border-radius: 8px;
-        background: var(--c-accent);
+        width: 40px;
+        height: 40px;
+        border-radius: 11px;
+        background: linear-gradient(130deg, #ffb347, #ff8f5b);
         border: none;
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
-        transition: all 0.2s;
+        transition: all 0.2s ease;
+        box-shadow: 0 12px 28px rgba(255, 144, 91, 0.36);
       }
       #send-btn:hover {
         filter: brightness(1.1);
-        transform: scale(1.06);
+        transform: translateY(-1px);
       }
       #send-btn:disabled {
         opacity: 0.35;
@@ -312,17 +428,30 @@
         flex: 1;
         position: relative;
         overflow: hidden;
+        border-radius: var(--radius-xl);
+        border: 1px solid var(--c-border);
+        box-shadow: var(--shadow-strong);
       }
       #map {
         width: 100%;
         height: 100%;
       }
+      #map-panel::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, rgba(1, 8, 12, 0.02), rgba(1, 8, 12, 0.28));
+        pointer-events: none;
+      }
+      body.light #map-panel::after {
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(160, 190, 210, 0.18));
+      }
       .map-badge {
         position: absolute;
-        background: rgba(8, 11, 16, 0.82);
+        background: rgba(5, 16, 24, 0.72);
         border: 1px solid var(--c-border);
-        border-radius: 9px;
-        padding: 8px 13px;
+        border-radius: var(--radius-lg);
+        padding: 9px 13px;
         font-family: "Space Mono", monospace;
         backdrop-filter: blur(10px);
         z-index: 999;
@@ -349,13 +478,115 @@
         color: var(--c-accent);
         font-weight: 700;
       }
+      #insights-panel {
+        position: absolute;
+        left: 14px;
+        bottom: 14px;
+        z-index: 999;
+        width: min(360px, calc(100% - 28px));
+        background: rgba(6, 18, 27, 0.78);
+        border: 1px solid var(--c-border);
+        border-radius: 16px;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 14px 35px rgba(0, 0, 0, 0.26);
+        overflow: hidden;
+      }
+      body.light #insights-panel {
+        background: rgba(247, 255, 255, 0.88);
+      }
+      .insights-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--c-border);
+      }
+      .insights-title {
+        font-family: "Space Mono", monospace;
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--c-muted);
+      }
+      .insights-status {
+        font-family: "Space Mono", monospace;
+        font-size: 10px;
+        letter-spacing: 0.05em;
+        color: #d4fdf6;
+        background: rgba(36, 192, 169, 0.16);
+        border: 1px solid rgba(36, 192, 169, 0.34);
+        border-radius: 999px;
+        padding: 3px 8px;
+      }
+      .insights-status[data-state="idle"] {
+        color: #d8e9f9;
+        background: rgba(146, 181, 212, 0.14);
+        border-color: rgba(146, 181, 212, 0.36);
+      }
+      .insights-status[data-state="running"] {
+        color: #fff0d7;
+        background: rgba(255, 179, 71, 0.16);
+        border-color: rgba(255, 179, 71, 0.42);
+      }
+      .insights-status[data-state="completed"],
+      .insights-status[data-state="rendered"] {
+        color: #d4fdf6;
+        background: rgba(36, 192, 169, 0.16);
+        border-color: rgba(36, 192, 169, 0.34);
+      }
+      .insights-status[data-state="needs selection"] {
+        color: #ffe9be;
+        background: rgba(229, 160, 56, 0.2);
+        border-color: rgba(229, 160, 56, 0.42);
+      }
+      .insights-status[data-state="failed"],
+      .insights-status[data-state="offline"] {
+        color: #ffd9d9;
+        background: rgba(217, 79, 79, 0.18);
+        border-color: rgba(217, 79, 79, 0.4);
+      }
+      body.light .insights-status {
+        color: #0f655d;
+      }
+      .insights-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        padding: 10px 12px 12px;
+      }
+      .insight-card {
+        border: 1px solid var(--c-border);
+        border-radius: 10px;
+        padding: 8px;
+        background: rgba(255, 255, 255, 0.03);
+      }
+      .insight-label {
+        font-family: "Space Mono", monospace;
+        font-size: 9px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--c-muted);
+        margin-bottom: 4px;
+      }
+      .insight-value {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--c-text);
+        line-height: 1.4;
+        word-break: break-word;
+      }
+      .insight-value.mono {
+        font-family: "Space Mono", monospace;
+        font-size: 11px;
+      }
 
       /* ── Thinking indicator ── */
       .thinking {
         display: flex;
         gap: 4px;
-        padding: 9px 13px;
-        background: var(--c-surface2);
+        padding: 10px 13px;
+        background: rgba(255, 255, 255, 0.03);
         border: 1px solid var(--c-border);
         border-radius: 12px;
         border-bottom-left-radius: 3px;
@@ -429,6 +660,83 @@
       .leaflet-control-zoom a:hover {
         background: var(--c-surface) !important;
       }
+      .leaflet-control-attribution {
+        background: rgba(6, 17, 26, 0.62) !important;
+        color: var(--c-muted) !important;
+        border-radius: 6px 0 0 0;
+      }
+      body.light .leaflet-control-attribution {
+        background: rgba(250, 255, 255, 0.82) !important;
+      }
+
+      @media (max-width: 1100px) {
+        #main {
+          padding: 10px;
+          gap: 10px;
+        }
+        #chat-panel {
+          width: 360px;
+          min-width: 280px;
+        }
+      }
+
+      @media (max-width: 900px) {
+        :root {
+          --header-h: 56px;
+        }
+        #header {
+          padding: 12px 14px;
+        }
+        #main {
+          flex-direction: column;
+          overflow: hidden;
+        }
+        #chat-panel {
+          width: 100%;
+          min-width: 100%;
+          height: 52%;
+          min-height: 0;
+        }
+        #map-panel {
+          min-height: 0;
+        }
+        #insights-panel {
+          width: min(340px, calc(100% - 24px));
+          left: 12px;
+          bottom: 12px;
+        }
+      }
+
+      @media (max-width: 620px) {
+        #header .sub {
+          display: none;
+        }
+        .status-chip {
+          font-size: 9px;
+          padding: 5px 8px;
+        }
+        .theme-btn {
+          font-size: 9px;
+          padding: 5px 8px;
+        }
+        #quick-actions {
+          grid-template-columns: 1fr;
+          gap: 6px;
+        }
+        .quick-chip {
+          font-size: 9px;
+          padding: 5px 8px;
+        }
+        #messages {
+          padding: 12px;
+        }
+        #input-area {
+          padding: 10px;
+        }
+        .insights-grid {
+          grid-template-columns: 1fr;
+        }
+      }
     </style>
   </head>
   <body>
@@ -438,32 +746,56 @@
       </div>
       <h1>tRAGopen</h1>
       <span class="sub">— LLM × Map</span>
+      <span class="status-chip">Agent Ready</span>
+      <button id="theme-toggle" class="theme-btn" onclick="toggleTheme()">
+        Light
+      </button>
     </div>
 
     <div id="main">
       <div id="chat-panel">
         <div id="chat-top">
           <div class="pulse"></div>
-          <span>Points of Interest</span>
+          <div class="chat-title">
+            <strong>Spatial Assistant</strong>
+            <span>Agentic WFS Chat</span>
+          </div>
           <button class="clear-btn" onclick="clearAll()">clear map</button>
+        </div>
+        <div id="quick-actions">
+          <button
+            class="quick-chip"
+            onclick="useQuickPrompt('Show municipality boundaries in municipality of Pamplona')"
+          >
+            Municipality Boundaries
+          </button>
+          <button
+            class="quick-chip"
+            onclick="useQuickPrompt('Show rivers layer in municipality of Tudela')"
+          >
+            Rivers In Tudela
+          </button>
+          <button
+            class="quick-chip"
+            onclick="useQuickPrompt('Show roads layer in municipality of Estella')"
+          >
+            Roads In Estella
+          </button>
         </div>
         <div id="messages">
           <div class="msg ai">
-            Describe any place — restaurants, hotels, museums, bars, parks — and
-            I'll extract each point of interest and pin it on the map.<br /><br />
+            Ask for geospatial data in a municipality and I will run an agentic
+            flow with tools: municipality boundary, WFS capabilities, layer
+            selection, and spatial filtering.<br /><br />
             <span style="font-size: 11.5px; color: var(--c-muted)"
-              >Try:
-              <em
-                >"Best sushi spots in Tokyo: Sukiyabashi Jiro in Ginza and Sushi
-                Saito in Minato."</em
-              ></span
+              >Try: <em>"Show schools layer in municipality of Pamplona"</em></span
             >
           </div>
         </div>
         <div id="input-area">
           <textarea
             id="user-input"
-            placeholder="Describe places, a neighbourhood, a trip..."
+            placeholder="Ask for a layer and municipality..."
             rows="1"
             onkeydown="handleKey(event)"
             oninput="autoResize(this)"
@@ -479,48 +811,45 @@
       <div id="map-panel">
         <div id="map"></div>
         <div class="map-badge" id="map-title">
-          <strong>Dark Map</strong>POIs pinned live
+          <strong>Geospatial Canvas</strong>Agentic GeoJSON output
         </div>
         <div class="map-badge" id="poi-counter">
-          POIs: <span id="pin-count">0</span>
+          Features: <span id="pin-count">0</span>
+        </div>
+        <div id="insights-panel">
+          <div class="insights-head">
+            <span class="insights-title">Run Context</span>
+            <span class="insights-status" id="run-status">Idle</span>
+          </div>
+          <div class="insights-grid">
+            <div class="insight-card">
+              <div class="insight-label">Municipality</div>
+              <div class="insight-value" id="insight-muni">-</div>
+            </div>
+            <div class="insight-card">
+              <div class="insight-label">Selected Layer</div>
+              <div class="insight-value mono" id="insight-layer">-</div>
+            </div>
+            <div class="insight-card">
+              <div class="insight-label">Rendered Features</div>
+              <div class="insight-value" id="insight-features">0</div>
+            </div>
+            <div class="insight-card">
+              <div class="insight-label">Mode</div>
+              <div class="insight-value" id="insight-mode">Agentic WFS</div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-      // ─── Category config ───────────────────────────────────────────────────────
-      const CATEGORY_COLORS = {
-        restaurant: "#FF6B6B",
-        hotel: "#4FC3F7",
-        museum: "#CE93D8",
-        bar: "#FFB74D",
-        cafe: "#A5D6A7",
-        park: "#81C784",
-        shop: "#F48FB1",
-        attraction: "#FFD166",
-        other: "#90CAF9",
-      };
-      const CATEGORY_EMOJI = {
-        restaurant: "🍽",
-        hotel: "🏨",
-        museum: "🏛",
-        bar: "🍸",
-        cafe: "☕",
-        park: "🌿",
-        shop: "🛍",
-        attraction: "⭐",
-        other: "📍",
-      };
-
       // ─── State ─────────────────────────────────────────────────────────────────
-      let map,
-        markers = [],
-        pinCount = 0;
-
-      // ─── YOUR ANTHROPIC API KEY ────────────────────────────────────────────────
-      // Replace the empty string below with your key: 'sk-ant-...'
-      const API_KEY = "";
+      let map;
+      let geoLayers = [];
+      let featureCount = 0;
+      let pendingPrompt = "";
 
       // ─── Map init ──────────────────────────────────────────────────────────────
       function initMap() {
@@ -533,6 +862,30 @@
           },
         ).addTo(map);
         map.zoomControl.setPosition("bottomright");
+        applySavedTheme();
+      }
+
+      function applySavedTheme() {
+        const savedTheme = localStorage.getItem("trag_theme") || "dark";
+        const body = document.body;
+        const toggle = document.getElementById("theme-toggle");
+        if (savedTheme === "light") {
+          body.classList.add("light");
+          if (toggle) toggle.textContent = "Dark";
+        } else {
+          body.classList.remove("light");
+          if (toggle) toggle.textContent = "Light";
+        }
+      }
+
+      function toggleTheme() {
+        const body = document.body;
+        const isLight = body.classList.toggle("light");
+        localStorage.setItem("trag_theme", isLight ? "light" : "dark");
+        const toggle = document.getElementById("theme-toggle");
+        if (toggle) {
+          toggle.textContent = isLight ? "Dark" : "Light";
+        }
       }
 
       // ─── UI helpers ────────────────────────────────────────────────────────────
@@ -548,6 +901,13 @@
         }
       }
 
+      function useQuickPrompt(text) {
+        const input = document.getElementById("user-input");
+        input.value = text;
+        autoResize(input);
+        sendMessage();
+      }
+
       function showThinking() {
         const msgs = document.getElementById("messages");
         const el = document.createElement("div");
@@ -559,6 +919,28 @@
         return el;
       }
 
+      function updateInsights(data = {}) {
+        const municipality = data.municipality || "-";
+        const layer = data.selected_layer || "-";
+        const status = data.status || "Idle";
+        const features = Number.isFinite(data.features)
+          ? data.features
+          : featureCount;
+
+        const municipalityEl = document.getElementById("insight-muni");
+        const layerEl = document.getElementById("insight-layer");
+        const statusEl = document.getElementById("run-status");
+        const featuresEl = document.getElementById("insight-features");
+
+        if (municipalityEl) municipalityEl.textContent = municipality;
+        if (layerEl) layerEl.textContent = layer;
+        if (statusEl) {
+          statusEl.textContent = status;
+          statusEl.dataset.state = String(status).toLowerCase();
+        }
+        if (featuresEl) featuresEl.textContent = String(features);
+      }
+
       function addUserMessage(text) {
         const msgs = document.getElementById("messages");
         const el = document.createElement("div");
@@ -568,36 +950,32 @@
         msgs.scrollTop = msgs.scrollHeight;
       }
 
-      function addAiMessage(reply, pois) {
+      function addAiMessage(reply, layerCandidates = []) {
         const msgs = document.getElementById("messages");
         const el = document.createElement("div");
         el.className = "msg ai";
         el.textContent = reply;
 
-        if (pois && pois.length) {
+        if (layerCandidates.length) {
           const list = document.createElement("div");
           list.className = "poi-list";
 
-          pois.forEach((poi, i) => {
-            const cat = (poi.category || "other").toLowerCase();
-            const color = CATEGORY_COLORS[cat] || CATEGORY_COLORS.other;
-            const emoji = CATEGORY_EMOJI[cat] || CATEGORY_EMOJI.other;
-            const globalIndex = pinCount - pois.length + i + 1;
-
+          layerCandidates.forEach((layer, i) => {
             const item = document.createElement("div");
             item.className = "poi-item";
             item.innerHTML = `
-          <div class="poi-icon" style="background:${color}22;border:1px solid ${color}44">${emoji}</div>
+          <div class="poi-icon" style="background:var(--c-accent)22;border:1px solid var(--c-accent)44">#${i + 1}</div>
           <div class="poi-details">
-            <div class="poi-name">${poi.name}</div>
-            <div class="poi-type">${cat}</div>
+            <div class="poi-name">${layer.name}</div>
+            <div class="poi-type">${layer.title || "No title"}</div>
           </div>
-          <div class="poi-num">#${globalIndex}</div>`;
-            item.onclick = () =>
-              map.flyTo([poi.lat, poi.lon], 15, {
-                animate: true,
-                duration: 1.2,
-              });
+          <div class="poi-num">use</div>`;
+            item.onclick = () => {
+              if (!pendingPrompt) {
+                return;
+              }
+              sendMessage({ promptOverride: pendingPrompt, selectedLayer: layer.name });
+            };
             list.appendChild(item);
           });
 
@@ -608,115 +986,105 @@
         msgs.scrollTop = msgs.scrollHeight;
       }
 
-      // ─── Pin icon ──────────────────────────────────────────────────────────────
-      function createPinIcon(n, cat) {
-        const color =
-          CATEGORY_COLORS[(cat || "other").toLowerCase()] ||
-          CATEGORY_COLORS.other;
-        const emoji = CATEGORY_EMOJI[(cat || "other").toLowerCase()] || "📍";
-        return L.divIcon({
-          html: `<div style="position:relative;width:34px;height:44px;filter:drop-shadow(0 3px 6px rgba(0,0,0,0.6))">
-        <svg viewBox="0 0 34 44" xmlns="http://www.w3.org/2000/svg">
-          <path d="M17 2C10.37 2 5 7.37 5 14c0 9.5 12 28 12 28S29 23.5 29 14C29 7.37 23.63 2 17 2z"
-            fill="${color}" stroke="rgba(0,0,0,0.3)" stroke-width="1"/>
-          <circle cx="17" cy="14" r="8" fill="rgba(0,0,0,0.35)"/>
-        </svg>
-        <span style="position:absolute;top:6px;left:50%;transform:translateX(-50%);font-size:12px;line-height:1">${emoji}</span>
-      </div>`,
-          iconSize: [34, 44],
-          iconAnchor: [17, 44],
-          popupAnchor: [0, -44],
-          className: "",
-        });
+      function paintGeoJSON(geojson) {
+        const layer = L.geoJSON(geojson, {
+          style: {
+            color: "#ffd166",
+            weight: 2,
+            fillColor: "#ffd166",
+            fillOpacity: 0.15,
+          },
+          pointToLayer: (feature, latlng) =>
+            L.circleMarker(latlng, {
+              radius: 5,
+              color: "#7b6ff0",
+              weight: 1,
+              fillColor: "#7b6ff0",
+              fillOpacity: 0.8,
+            }),
+          onEachFeature: (feature, l) => {
+            const props = feature.properties || {};
+            const rows = Object.entries(props)
+              .slice(0, 6)
+              .map(([k, v]) => `<div><strong>${k}</strong>: ${v}</div>`)
+              .join("");
+            if (rows) {
+              l.bindPopup(`<div class="pop-title">Feature</div><div class="pop-desc">${rows}</div>`);
+            }
+          },
+        }).addTo(map);
+
+        geoLayers.push(layer);
+
+        const count = (geojson.features || []).length;
+        featureCount += count;
+        document.getElementById("pin-count").textContent = String(featureCount);
+        updateInsights({ features: featureCount, status: "Rendered" });
+
+        const bounds = layer.getBounds();
+        if (bounds.isValid()) {
+          map.fitBounds(bounds, {
+            padding: [60, 60],
+            animate: true,
+            duration: 1.2,
+            maxZoom: 15,
+          });
+        }
       }
 
       // ─── Main send ─────────────────────────────────────────────────────────────
-      async function sendMessage() {
+      async function sendMessage(options = {}) {
         const input = document.getElementById("user-input");
-        const text = input.value.trim();
+        const text = (options.promptOverride || input.value || "").trim();
         if (!text) return;
 
         const btn = document.getElementById("send-btn");
         btn.disabled = true;
-        input.value = "";
-        input.style.height = "auto";
-
-        addUserMessage(text);
+        updateInsights({ status: "Running" });
+        if (!options.promptOverride) {
+          input.value = "";
+          input.style.height = "auto";
+          addUserMessage(text);
+          pendingPrompt = text;
+        }
         const thinking = showThinking();
 
         try {
-          const resp = await fetch("https://api.anthropic.com/v1/messages", {
+          const resp = await fetch("/api/agent/chat", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              // Uncomment the line below if running outside claude.ai (e.g. local server):
-              // 'x-api-key': API_KEY,
-              // 'anthropic-version': '2023-06-01',
-              // 'anthropic-dangerous-direct-browser-calls': 'true'
             },
             body: JSON.stringify({
-              model: "claude-sonnet-4-20250514",
-              max_tokens: 1000,
-              system: `You are a points-of-interest extractor. Extract ONLY specific POIs from the text: restaurants, cafes, hotels, bars, museums, shops, parks, attractions, and similar named venues or places of interest. Do NOT extract generic city or country names unless they describe a specific POI.
-For each POI provide its real-world GPS coordinates.
-Respond ONLY with valid JSON (no markdown, no backticks):
-{"reply":"brief friendly reply about what you found","pois":[{"name":"Sukiyabashi Jiro","category":"restaurant","lat":35.6721,"lon":139.7636,"description":"Legendary 3-Michelin-star sushi restaurant"}]}
-Categories: restaurant, hotel, museum, bar, cafe, park, shop, attraction, other.
-If no POIs found: {"reply":"...","pois":[]}`,
-              messages: [{ role: "user", content: text }],
+              prompt: text,
+              selected_layer: options.selectedLayer || null,
             }),
           });
 
           const data = await resp.json();
           thinking.remove();
 
-          const raw = data.content?.map((b) => b.text || "").join("") || "";
-          let parsed;
-          try {
-            parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
-          } catch (e) {
-            parsed = { reply: raw || "Could not parse response.", pois: [] };
+          if (!resp.ok) {
+            updateInsights({ status: "Failed" });
+            addAiMessage(data.error || "Backend error while running the agent workflow.");
+            btn.disabled = false;
+            return;
           }
 
-          const pois = parsed.pois || [];
-
-          // Drop pins before building message so index aligns
-          const bounds = [];
-          pois.forEach((poi) => {
-            pinCount++;
-            document.getElementById("pin-count").textContent = pinCount;
-            const cat = (poi.category || "other").toLowerCase();
-            const marker = L.marker([poi.lat, poi.lon], {
-              icon: createPinIcon(pinCount, cat),
-            })
-              .bindPopup(
-                `
-            <div class="pop-type">${cat}</div>
-            <div class="pop-title">${poi.name}</div>
-            <div class="pop-desc">${poi.description || ""}</div>`,
-              )
-              .addTo(map);
-            markers.push(marker);
-            bounds.push([poi.lat, poi.lon]);
+          updateInsights({
+            municipality: data.municipality || "-",
+            selected_layer: data.selected_layer || "-",
+            status: data.needs_layer_selection ? "Needs Selection" : "Completed",
+            features: data.geojson?.features?.length ?? featureCount,
           });
-
-          addAiMessage(parsed.reply || "Done!", pois);
-
-          if (bounds.length === 1) {
-            map.flyTo(bounds[0], 15, { animate: true, duration: 1.4 });
-          } else if (bounds.length > 1) {
-            map.flyToBounds(bounds, {
-              padding: [60, 60],
-              animate: true,
-              duration: 1.4,
-              maxZoom: 14,
-            });
+          addAiMessage(data.reply || "Done.", data.layer_candidates || []);
+          if (data.geojson && Array.isArray(data.geojson.features)) {
+            paintGeoJSON(data.geojson);
           }
         } catch (e) {
+          updateInsights({ status: "Offline" });
           thinking.remove();
-          addAiMessage(
-            "Connection error. Check your API key or network configuration.",
-          );
+          addAiMessage("Connection error. Check backend availability.");
           console.error(e);
         }
 
@@ -725,14 +1093,21 @@ If no POIs found: {"reply":"...","pois":[]}`,
 
       // ─── Clear ─────────────────────────────────────────────────────────────────
       function clearAll() {
-        markers.forEach((m) => m.remove());
-        markers = [];
-        pinCount = 0;
+        geoLayers.forEach((layer) => layer.remove());
+        geoLayers = [];
+        featureCount = 0;
+        pendingPrompt = "";
         document.getElementById("pin-count").textContent = "0";
+        updateInsights({
+          municipality: "-",
+          selected_layer: "-",
+          status: "Idle",
+          features: 0,
+        });
         map.setView([35, 10], 2);
         const msgs = document.getElementById("messages");
         msgs.innerHTML =
-          '<div class="msg ai">Map cleared — ready for new POIs!</div>';
+          '<div class="msg ai">Map cleared. Ask for a municipality + layer again.</div>';
       }
 
       // ─── Boot ──────────────────────────────────────────────────────────────────
