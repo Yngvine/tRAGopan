@@ -41,6 +41,7 @@ class AgentState(TypedDict, total=False):
     tool_plan: list[str]
     reply: str
     actions: list[dict[str, Any]]
+    trace: list[str]
     warnings: list[str]
     error: str | None
 
@@ -309,11 +310,12 @@ class OllamaAdapter(LLMAdapter):
     async def extract_scope(self, prompt: str) -> dict[str, Any]:
         system_instruction = (
             "You are a planner for a geospatial agent over IDENA WFS. "
-            "You must choose tools when relevant and infer query_mode. "
+            "Use a strict think-then-act approach internally (ReAct style), then choose tools and infer query_mode. "
             "Return ONLY valid JSON with keys municipality, municipalities, layer_hint, query_mode, planned_tools. "
             "query_mode must be one of: municipalities, municipality_boundary, toponymy_in_municipality, filtered_layer, general. "
             "planned_tools must be an array of tool names from the provided catalog. "
             "If user asks multiple municipalities, fill municipalities as a list and set municipality to first item. "
+            "If the user mentions a place with patterns like 'en X', 'in X', or trailing 'de X', treat X as municipality when plausible. "
             "Use null when municipality or layer_hint are missing."
         )
 
@@ -563,6 +565,7 @@ class AgentGeoService:
             re.search(r"\bmunicip(?:io|ality)(?:s)?\b", text, flags=re.IGNORECASE)
             or re.search(r"\ben\s+[a-zà-ÿ\-\s/]+$", text, flags=re.IGNORECASE)
             or re.search(r"\bin\s+[a-zà-ÿ\-\s/]+$", text, flags=re.IGNORECASE)
+            or re.search(r"\bde\s+[a-zà-ÿ\-\s/']+$", text, flags=re.IGNORECASE)
         )
 
     @staticmethod
@@ -622,6 +625,27 @@ class AgentGeoService:
         return any(re.match(pattern, text, flags=re.IGNORECASE) for pattern in patterns)
 
     @staticmethod
+    def _extract_direct_layer_municipality(prompt: str) -> tuple[str | None, str | None]:
+        text = prompt.strip()
+        if not text:
+            return None, None
+
+        # Example: "muestrame la capa de acometidas de pamplona"
+        match = re.search(
+            r"\b(?:muestrame|mu[eé]strame|mostrar|quiero|dame|ens[eé]n?ame|cargar)?\s*"
+            r"(?:la\s+|el\s+)?(?:capa|layer)\s+de\s+(.+?)\s+(?:en|de)\s+"
+            r"([a-zA-ZÀ-ÿ][a-zA-ZÀ-ÿ\-\s/']*)\s*$",
+            text,
+            flags=re.IGNORECASE,
+        )
+        if not match:
+            return None, None
+
+        layer_hint = match.group(1).strip(" .,:;!?") or None
+        municipality = match.group(2).strip(" .,:;!?") or None
+        return layer_hint, municipality
+
+    @staticmethod
     def _is_global_scope_prompt(prompt: str) -> bool:
         text = prompt.lower().strip()
         if not text:
@@ -671,6 +695,34 @@ class AgentGeoService:
         match = re.search(pattern, text, flags=re.IGNORECASE)
         if match:
             tail = re.sub(r"\b(en|in)\b.*$", "", match.group(1), flags=re.IGNORECASE).strip()
+            for value in self._split_municipality_candidates(tail):
+                if self._is_likely_municipality_candidate(value) and value not in hints:
+                    hints.append(value)
+
+        # Support natural prompts like "capa X en Tudela" where municipality keyword
+        # is not explicitly written.
+        location_pattern = r"\b(?:en|in)\s+([a-zA-ZÀ-ÿ][a-zA-ZÀ-ÿ\-\s/']*)"
+        for location_match in re.finditer(location_pattern, text, flags=re.IGNORECASE):
+            tail = location_match.group(1)
+            tail = re.split(
+                r"\b(?:con|sin|de|del|para|por|where|with|without|using|que|which)\b",
+                tail,
+                maxsplit=1,
+                flags=re.IGNORECASE,
+            )[0].strip(" .,:;!?")
+            for value in self._split_municipality_candidates(tail):
+                if self._is_likely_municipality_candidate(value) and value not in hints:
+                    hints.append(value)
+
+        # Support Spanish prompts like "capa de X de Pamplona" by only taking
+        # the trailing final "de <location>" candidate.
+        trailing_de = re.search(
+            r"\bde\s+([a-zA-ZÀ-ÿ][a-zA-ZÀ-ÿ\-\s/']*)\s*$",
+            text,
+            flags=re.IGNORECASE,
+        )
+        if trailing_de:
+            tail = trailing_de.group(1).strip(" .,:;!?")
             for value in self._split_municipality_candidates(tail):
                 if self._is_likely_municipality_candidate(value) and value not in hints:
                     hints.append(value)
@@ -876,12 +928,16 @@ class AgentGeoService:
             parsed = await self.rule_fallback.extract_scope(state["prompt"])
 
         semantic_hint = self._infer_semantic_layer_hint(prompt)
+        direct_layer_hint, direct_municipality = self._extract_direct_layer_municipality(prompt)
         followup = self._is_followup_municipality_prompt(prompt)
         selected_layer = state.get("selected_layer")
 
         municipality_hints = self._extract_municipality_hints(prompt, parsed, context, allow_context=False)
+        if direct_municipality and self._is_likely_municipality_candidate(direct_municipality):
+            if direct_municipality not in municipality_hints:
+                municipality_hints.insert(0, direct_municipality)
         municipality = municipality_hints[0] if municipality_hints else None
-        layer_hint = selected_layer or semantic_hint or parsed.get("layer_hint")
+        layer_hint = selected_layer or direct_layer_hint or semantic_hint or parsed.get("layer_hint")
         global_scope = self._is_global_scope_prompt(prompt)
 
         if municipality and self.client._normalize_text(municipality) == "navarra":
@@ -919,6 +975,74 @@ class AgentGeoService:
             "layer_hint": layer_hint or state["prompt"],
             "tool_plan": parsed.get("planned_tools") or [],
         }
+
+    def _build_trace(self, result: AgentState) -> list[str]:
+        trace: list[str] = []
+        prompt = str(result.get("prompt") or "").strip()
+        if prompt:
+            trace.append(f"Analyzing request: '{prompt}'.")
+
+        if not result.get("is_geo_request", True):
+            trace.append("Classified as general chat (no geospatial workflow).")
+            return trace
+
+        mode = str(result.get("query_mode") or "filtered_layer")
+        trace.append(f"Inferred mode: {mode}.")
+
+        muni_hints = result.get("municipality_hints") or []
+        if muni_hints:
+            trace.append(f"Searching municipality(ies): {', '.join(muni_hints)}.")
+
+        municipality_name = result.get("municipality_name")
+        if municipality_name:
+            trace.append(f"Resolved municipality: {municipality_name}.")
+        elif result.get("global_scope"):
+            trace.append("No explicit municipality: using Navarra-wide scope.")
+
+        if mode in {"filtered_layer", "toponymy_in_municipality"}:
+            layer_hint = str(result.get("layer_hint") or "").strip()
+            if layer_hint:
+                trace.append(f"Searching layers with hint: '{layer_hint}'.")
+
+        candidates = result.get("layer_candidates") or []
+        if candidates:
+            names = [str(layer.get("name", "")) for layer in candidates if layer.get("name")]
+            if names:
+                trace.append(f"Candidate layers: {', '.join(names)}.")
+
+        chosen_layer = (result.get("chosen_layer") or {}).get("name")
+        if chosen_layer:
+            trace.append(f"Selected layer: {chosen_layer}.")
+
+        if mode == "filtered_layer":
+            if result.get("global_scope"):
+                trace.append("Applying query without municipality filter (Navarra-wide).")
+            else:
+                trace.append("Applying spatial filter by municipality boundary.")
+
+        filtered_geojson = result.get("filtered_geojson") or {}
+        total = len(filtered_geojson.get("features", []) or [])
+        if total:
+            trace.append(f"Renderable results: {total} feature(s).")
+
+        actions = result.get("actions") or []
+        has_boundary = any(
+            action.get("type") == "add_layer" and action.get("layer_role") == "municipality_boundary"
+            for action in actions
+            if isinstance(action, dict)
+        )
+        has_filtered = any(
+            action.get("type") == "add_layer" and action.get("layer_role") in {"filtered_layer", "toponymy_points"}
+            for action in actions
+            if isinstance(action, dict)
+        )
+        if has_boundary and has_filtered:
+            trace.append("Final render: municipality boundary + filtered requested layer.")
+
+        if result.get("error"):
+            trace.append(f"Execution error: {result.get('error')}.")
+
+        return trace
 
     def _parse_branch(self, state: AgentState) -> str:
         if not state.get("is_geo_request"):
@@ -1273,10 +1397,20 @@ class AgentGeoService:
             filtered_geojson = state.get("filtered_geojson") or {"type": "FeatureCollection", "features": []}
             total = len(filtered_geojson.get("features", []))
             municipality = state.get("municipality_name", "the selected municipality")
-            return {
-                "reply": f"Found {total} toponyms inside municipality '{municipality}'.",
-                "actions": [
-                    {"type": "clear_layers"},
+            municipality_geojson = state.get("municipality_geojson")
+            actions: list[dict[str, Any]] = [{"type": "clear_layers"}]
+            if municipality_geojson and municipality_geojson.get("features"):
+                actions.append(
+                    {
+                        "type": "add_layer",
+                        "layer_role": "municipality_boundary",
+                        "source": "municipality_geojson",
+                        "style": {"stroke": "#63d9c3", "fill": "#63d9c3", "fillOpacity": 0.05},
+                        "count_in_stats": False,
+                    }
+                )
+            actions.extend(
+                [
                     {
                         "type": "add_layer",
                         "layer_role": "toponymy_points",
@@ -1284,7 +1418,11 @@ class AgentGeoService:
                         "style": {"pointColor": "#4f8cff", "radius": 5},
                     },
                     {"type": "fit_bounds", "source": "geojson"},
-                ],
+                ]
+            )
+            return {
+                "reply": f"Found {total} toponyms inside municipality '{municipality}'.",
+                "actions": actions,
                 "warnings": warnings,
                 "conversation_context": {
                     "municipality": municipality,
@@ -1460,6 +1598,7 @@ class AgentGeoService:
             "error": None,
         }
         result = await self.graph.ainvoke(initial_state)
+        trace = self._build_trace(result)
         return {
             "reply": result.get("reply", "No response generated."),
             "chat_mode": "geospatial" if result.get("is_geo_request", True) else "general",
@@ -1476,6 +1615,7 @@ class AgentGeoService:
             "pagination": result.get("pagination", {}),
             "context_update": result.get("conversation_context", {}),
             "tool_plan": result.get("tool_plan", []),
+            "trace": trace,
         }
 
 

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>tRAGopen — LLM × Map</title>
+    <title>Idena SVP (...)</title>
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -766,7 +766,7 @@
       <div class="logo">
         <img src="RA.png" alt="RA logo" />
       </div>
-      <h1>tRAGopen</h1>
+      <h1>Idena SVP</h1>
       <span class="sub">— LLM × Map</span>
       <span class="status-chip">Agent Ready</span>
       <button id="theme-toggle" class="theme-btn" onclick="toggleTheme()">
@@ -1009,11 +1009,28 @@
         msgs.scrollTop = msgs.scrollHeight;
       }
 
-      function addAiMessage(reply, layerCandidates = [], warnings = []) {
+      function addAiMessage(
+        reply,
+        layerCandidates = [],
+        warnings = [],
+        trace = [],
+      ) {
         const msgs = document.getElementById("messages");
         const el = document.createElement("div");
         el.className = "msg ai";
         el.textContent = reply;
+
+        if (trace.length) {
+          const traceBox = document.createElement("div");
+          traceBox.className = "poi-list";
+          trace.forEach((step, i) => {
+            const item = document.createElement("div");
+            item.className = "poi-item";
+            item.innerHTML = `<div class="poi-icon" style="background:#24c0a922;border:1px solid #24c0a966">${i + 1}</div><div class="poi-details"><div class="poi-name">Trace</div><div class="poi-type">${step}</div></div>`;
+            traceBox.appendChild(item);
+          });
+          el.appendChild(traceBox);
+        }
 
         if (warnings.length) {
           const warn = document.createElement("div");
@@ -1048,6 +1065,7 @@
               sendMessage({
                 promptOverride: pendingPrompt,
                 selectedLayer: layer.name,
+                skipUserEcho: true,
               });
             };
             list.appendChild(item);
@@ -1194,7 +1212,10 @@
         const btn = document.getElementById("send-btn");
         btn.disabled = true;
         updateInsights({ status: "Running" });
-        if (!options.promptOverride || !options.loadMore) {
+        const shouldEchoUserMessage =
+          !options.skipUserEcho &&
+          (!options.promptOverride || !options.loadMore);
+        if (shouldEchoUserMessage) {
           input.value = "";
           input.style.height = "auto";
           addUserMessage(text);
@@ -1251,6 +1272,7 @@
             data.reply || "Done.",
             data.layer_candidates || [],
             data.warnings || [],
+            data.trace || [],
           );
           applyActions(data.actions || [], data.geojson || null, {
             municipality_geojson: data.municipality_geojson || null,
